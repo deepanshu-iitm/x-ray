@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>X-Ray Decision Dashboard</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f7f9;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      color: #555;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 16px;
+      font-size: 14px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1e4fd6;
+    }
+
+    .execution-meta {
+      margin-top: 20px;
+      padding: 12px;
+      background: white;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .timeline {
+      margin-top: 20px;
+    }
+
+    .step {
+      background: white;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-left: 5px solid #2563eb;
+    }
+
+    .step h3 {
+      margin: 0 0 10px 0;
+      text-transform: capitalize;
+    }
+
+    .section {
+      margin-bottom: 10px;
+    }
+
+    .label {
+      font-weight: bold;
+      font-size: 13px;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    pre {
+      background: #f1f5f9;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      overflow-x: auto;
+    }
+
+    .evaluation {
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .pass {
+      color: green;
+      font-weight: bold;
+    }
+
+    .fail {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>X-Ray Decision Dashboard</h1>
+  <div class="subtitle">
+    Visual explanation of multi-step decision reasoning
+  </div>
+
+  <button onclick="runDemo()">▶ Run Demo Execution</button>
+
+  <div id="execution"></div>
+
+  <script>
+    async function runDemo() {
+      document.getElementById("execution").innerHTML = "Running demo…";
+
+      const run = await fetch("http://localhost:8000/run-demo", { method: "POST" });
+      const { execution_id } = await run.json();
+
+      const exec = await fetch(`http://localhost:8000/execution/${execution_id}`);
+      const data = await exec.json();
+
+      renderExecution(data);
+    }
+
+    function renderExecution(data) {
+      let html = `
+        <div class="execution-meta">
+          <div><strong>Execution ID:</strong> ${data.execution_id}</div>
+          <div><strong>Started:</strong> ${data.start_time}</div>
+          <div><strong>Ended:</strong> ${data.end_time}</div>
+        </div>
+
+        <div class="timeline">
+      `;
+
+      data.steps.forEach((step, index) => {
+        html += `
+          <div class="step">
+            <h3>Step ${index + 1}: ${step.step_name}</h3>
+
+            <div class="section">
+              <div class="label">Input</div>
+              <pre>${JSON.stringify(step.input, null, 2)}</pre>
+            </div>
+        `;
+
+        if (Object.keys(step.rules).length > 0) {
+          html += `
+            <div class="section">
+              <div class="label">Rules Applied</div>
+              <pre>${JSON.stringify(step.rules, null, 2)}</pre>
+            </div>
+          `;
+        }
+
+        if (step.evaluations.length > 0) {
+          html += `
+            <div class="section">
+              <div class="label">Evaluations</div>
+          `;
+
+          step.evaluations.forEach(ev => {
+            html += `
+              <div class="evaluation">
+                ${ev.item_id} →
+                <span class="${ev.passed ? "pass" : "fail"}">
+                  ${ev.passed ? "PASSED" : "FAILED"}
+                </span>
+                (${ev.reason})
+              </div>
+            `;
+          });
+
+          html += `</div>`;
+        }
+
+        html += `
+            <div class="section">
+              <div class="label">Output</div>
+              <pre>${JSON.stringify(step.output, null, 2)}</pre>
+            </div>
+
+            <div class="section">
+              <div class="label">Reasoning</div>
+              <div>${step.reasoning}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+
+      document.getElementById("execution").innerHTML = html;
+    }
+  </script>
+
+</body>
+</html>
